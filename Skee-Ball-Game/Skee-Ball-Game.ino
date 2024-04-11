@@ -12,10 +12,21 @@ int sensorTrigPin0 = 5;
 //TODO: Maybe we should renames theses based on what pin they are??
 
 //The button pin
-int buttonTrigPin = 3;
+int singleButtonPin = 3;
+//Pin for multiplay button
+int multiButtonPin = 10;
 
-//The current score
-int score = 0;
+//The current score of the first player
+int p1Score = 0;
+//The current score of the second player
+int p2Score = 0;
+//Is a game currently being played
+boolean isPlaying = false;
+//Is the game in multiplayer mode?
+boolean isMultiPlayer = false;
+//The current player player
+int currentPlayer = 1;
+
 //Was the senser covered last check?
 boolean isFlagged = false;
 
@@ -38,7 +49,8 @@ void setup() {
   //pinMode(trigPin5, INPUT);
 
   //Button Pin Setup
-  pinMode(buttonTrigPin , INPUT);
+  pinMode(singleButtonPin , INPUT);
+  pinMode(multiButtonPin , INPUT);
 
   //Display Setup
   dmd.setBrightness(255);
@@ -47,32 +59,50 @@ void setup() {
 }
 
 
-//Updates the score board to show the current score
+//Updates the p1Score board to show the current p1Score
 void updateScoreBoard() {
   //Calculates the width needed to center it on the screen
-  int widthLocation = (32 - dmd.stringWidth(String(score))) / 2;
-  dmd.drawString(widthLocation,2,String(score));
-}
-
-//Updates the score by adding the given value to the score total
-void updateScore(int addScore) {
-  //Checks if isFlagged is false before running, prevents the score from constantly added to itself
-  if (isFlagged == false) {
-    isFlagged = true;
-    score += addScore;
-    Serial.println(score);
-    dmd.clearScreen(); //Clears the screen to prevent weird numbers from showing on update
-    updateScoreBoard();
-    delay(100);
+  if (currentPlayer == 1 || isMultiPlayer == false) {
+    int widthLocation = (32 - dmd.stringWidth(String(p1Score))) / 2;
+    dmd.drawString(widthLocation,2,String(p1Score));
+  } else if (currentPlayer == 2) {
+    int widthLocation = (32 - dmd.stringWidth(String(p2Score))) / 2;
+    dmd.drawString(widthLocation,2,String(p2Score));
   }
 }
 
-//Resets the score to 0
+//Updates the p1Score by adding the given value to the p1Score total
+void updateScore(int addScore) {
+  //Checks if isFlagged is false before running, prevents the p1Score from constantly added to itself
+  if (isFlagged == false) {
+    if (currentPlayer == 1 || isMultiPlayer == false) {
+      isFlagged = true;
+      p1Score += addScore;
+      Serial.println(p1Score);
+      dmd.clearScreen(); //Clears the screen to prevent weird numbers from showing on update
+      updateScoreBoard();
+      delay(100);
+    } else if (currentPlayer == 2) {
+      isFlagged = true;
+      p2Score += addScore;
+      Serial.println(p2Score);
+      dmd.clearScreen();
+      updateScoreBoard();
+      delay(100);
+    }
+  }
+}
+
+//Resets the p1Score to 0
 void resetScore() {
   //Prevents the screen from refreshing too fast
-  if (score != 0) {
-    score = 0;
-    Serial.println(score);
+  //Maybe use isPlaying here instead?
+  if (p1Score != 0 || p2Score != 0) {
+    p1Score = 0;
+    p2Score = 0;
+    isMultiPlayer = false;
+    currentPlayer = 1;
+    Serial.println(p1Score);
     dmd.clearScreen(); //Clears the screen. Without this, the screen would not update to 0
     updateScoreBoard();
     delay(100);
@@ -96,9 +126,10 @@ void loop() {
   //int sensorStatus5 = digitalRead(sensorTrigPin4);
 
   //Button status
-  int button0Status = digitalRead(buttonTrigPin);
+  int button0Status = digitalRead(singleButtonPin);
+  int multiButtonStatus = digitalRead(multiButtonPin);
   
-  //Updates the score based on the status of the sensor(s)
+  //Updates the p1Score based on the status of the sensor(s)
   if (sensor0Status == 0) {
     updateScore(100);
   } /*else if (sensor1Status == 0) {
@@ -112,14 +143,25 @@ void loop() {
   }*/ else if (isFlagged == true) {
     /*
     This code will only run if all the sensors have a status of 1 and isFlagged is true
-    Prevents the sensor from adding to the score multiple times when it is only covered once
+    Prevents the sensor from adding to the p1Score multiple times when it is only covered once
     */
     isFlagged = false;
     delay(100);
   }
-
-  //Resets the score when the button is pressed
-  if (button0Status == 1) {
+  
+  //Resets the p1Score when the button is pressed
+  if (button0Status == 1 && !isPlaying) {
     resetScore();
+    isPlaying = true;
+    //Starts single player game
+    //Servo moter to open
+  }
+
+  if (multiButtonStatus == 1 && !isPlaying) {
+    resetScore();
+    isPlaying = true;
+    isMultiPlayer = true;
+    //Start multiplay game
+    //Servo moter to open
   }
 }
